@@ -6,32 +6,12 @@
 
 #include <gb/gb.h>
 #include <stdio.h>
+#include "GameCharacter.c"
+#include "GameSprites.c"
 
-
-INT16 playerlocation[2];  // stores two INT16 x and y position of player
-BYTE jumping;
-INT8 gravity = -2;
-INT16 currentspeedY;
-INT16 floorYposition = 139;
-
-unsigned char bloke[] = {
-  0x00, 0x00, 0x38, 0x38, 0x7C, 0x44, 0x7F, 0x7F,
-  0x44, 0x74, 0x46, 0x7C, 0x40, 0x78, 0x24, 0x3C,
-  0x18, 0x3C, 0x00, 0x24, 0x00, 0x24, 0x00, 0x24,
-  0x00, 0x24, 0x00, 0x36, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x38, 0x38, 0x7C, 0x44, 0x7F, 0x7F,
-  0x44, 0x74, 0x46, 0x7C, 0x40, 0x78, 0x24, 0x3C,
-  0x18, 0x3C, 0x00, 0x22, 0x00, 0x22, 0x00, 0x22,
-  0x00, 0x23, 0x00, 0x30, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x38, 0x38, 0x7C, 0x44, 0x7F, 0x7F,
-  0x44, 0x74, 0x46, 0x7C, 0x40, 0x78, 0x24, 0x3C,
-  0x18, 0x3C, 0x00, 0x42, 0x00, 0x42, 0x00, 0x42,
-  0x00, 0x42, 0x00, 0x63, 0x00, 0x00, 0x00, 0x00,
-  0x00, 0x00, 0x38, 0x38, 0x7C, 0x44, 0x7F, 0x7F,
-  0x44, 0x74, 0x46, 0x7C, 0x40, 0x78, 0x24, 0x3C,
-  0x18, 0x3C, 0x00, 0x44, 0x00, 0x44, 0x00, 0x44,
-  0x00, 0x64, 0x00, 0x06, 0x00, 0x00, 0x00, 0x00
-};
+struct GameCharacter ship;
+struct GameCharacter bug;
+UBYTE spritesize = 8;
 
 void performantdelay(UINT8 numloops) {
     UINT8 i;
@@ -40,58 +20,77 @@ void performantdelay(UINT8 numloops) {
     }
 }
 
-INT8 wouldhitsurface(INT16 projectedYPosition) {
-    if (projectedYPosition >= floorYposition) {
-        return floorYposition;
-    }
-    return -1;
+void movegamecharacter(struct GameCharacter* character, UINT8 x, UINT8 y) {
+    move_sprite(character->spritids[0], x, y);
+    move_sprite(character->spritids[1], x + spritesize, y);
+    move_sprite(character->spritids[2], x, y + spritesize);
+    move_sprite(character->spritids[3], x + spritesize, y + spritesize);
 }
 
-void jump(UINT8 spriteid, UINT16 spritelocation[2]) {
-    INT8 possiblesurfaceY;
+void setupship() {
+    ship.x = 80;
+    ship.y = 130;
+    ship.width = 16;
+    ship.height = 16;
 
-    if (jumping == 0) {
-        jumping = 1;
-        currentspeedY = 10;
-    }
+    // load sprites for ship
+    set_sprite_tile(0, 0);
+    ship.spritids[0] = 0;
+    set_sprite_tile(1, 1);
+    ship.spritids[1] = 1;
+    set_sprite_tile(2, 2);
+    ship.spritids[2] = 2;
+    set_sprite_tile(3, 3);
+    ship.spritids[3] = 3;
 
-    // work out current speed - effect of gravities accelleration down
-    currentspeedY = currentspeedY + gravity;
+    movegamecharacter(&ship, ship.x, ship.y);
+}
 
-    spritelocation[1] = spritelocation[1] - currentspeedY;
+void setupbug() {
+    bug.x = 30;
+    bug.y = 0;
+    bug.width = 16;
+    bug.height = 16;
 
-    possiblesurfaceY = wouldhitsurface(spritelocation[1]);
+    // load sprites for bug
+    set_sprite_tile(4, 4);
+    bug.spritids[0] = 4;
+    set_sprite_tile(5, 5);
+    bug.spritids[1] = 5;
+    set_sprite_tile(6, 6);
+    bug.spritids[2] = 6;
+    set_sprite_tile(7, 7);
+    bug.spritids[3] = 7;
 
-    if (possiblesurfaceY != -1) {
-        jumping = 0;
-        move_sprite(spriteid, spritelocation[0], possiblesurfaceY);
-    } else {
-        move_sprite(spriteid, spritelocation[0], spritelocation[1]);
-    }
+    movegamecharacter(&bug, bug.x, bug.y);
 }
 
 void main() {
-    set_sprite_data(0, 8, bloke);   /* defines the sprite data */
-    set_sprite_tile(0, 0);            /* defines the tiles numbers */
-    playerlocation[0] = 10;
-    playerlocation[1] = floorYposition;
-    jumping = 0;
+    set_sprite_data(0, 8, GameSprites);
+    setupship();
+    setupbug();
 
-    move_sprite(0, playerlocation[0], playerlocation[1]);
-
-    DISPLAY_ON;  // Turn on the display
     SHOW_SPRITES;
+    DISPLAY_ON;
 
     while (1) {
-        if ((joypad() & J_A) || jumping == 1) {
-            jump(0, playerlocation);
-        } else if (joypad() & J_LEFT) {
-            playerlocation[0] = playerlocation[0] - 2;
-            move_sprite(0, playerlocation[0], playerlocation[1]);
-        } else if (joypad() & J_RIGHT) {
-            playerlocation[0] = playerlocation[0] + 2;
-            move_sprite(0, playerlocation[0], playerlocation[1]);
-        }
-        performantdelay(5);
+       if (joypad() & J_LEFT) {
+           ship.x -= 2;
+           movegamecharacter(&ship, ship.x, ship.y);
+       } else if (joypad() & J_RIGHT) {
+           ship.x += 2;
+           movegamecharacter(&ship, ship.x, ship.y);
+       }
+
+       bug.y += 5;
+
+       if (bug.y >= 144) {
+           bug.y = 0;
+           bug.x = ship.x;
+       }
+
+       movegamecharacter(&bug, bug.x, bug.y);
+
+       performantdelay(5);
     }
 }
